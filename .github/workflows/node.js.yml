@@ -1,0 +1,85 @@
+name: CI/CD with Docker
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  #-------- CI -------
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+          - 15672:15672
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Test Auth
+        working-directory: ./auth
+        env:
+          MONGODB_AUTH_URI: mongodb://localhost:27017/auth_test
+          JWT_SECRET: testsecret
+        run: npm install && npm test
+
+      - name: Test Product
+        working-directory: ./product
+        env:
+          MONGODB_AUTH_URI: mongodb://localhost:27017/product_test
+          RABBITMQ_URL: amqp://localhost:5672
+          JWT_SECRET: testsecret 
+        run: npm install && npm test
+
+
+  # -------- Build & Push Docker --------
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Push Auth
+        uses: docker/build-push-action@v5
+        with:
+          context: ./auth
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/auth-service:latest
+
+      - name: Build & Push Product
+        uses: docker/build-push-action@v5
+        with:
+          context: ./product
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/product-service:latest
+
+      - name: Build & Push Order
+        uses: docker/build-push-action@v5
+        with:
+          context: ./order
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/order-service:latest
+
+      - name: Build & Push API Gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api-gateway
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/api-gateway:latest
+
+ 
