@@ -41,7 +41,7 @@ jobs:
           JWT_SECRET: testsecret 
         run: npm install && npm test
 
-
+#CD
   # -------- Build & Push Docker --------
   docker:
     runs-on: ubuntu-latest

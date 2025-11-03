@@ -2,6 +2,8 @@ version: "3.9"
 services:
   api-gateway:
     build: ./api-gateway
+    container_name: api-gateway
+    restart: always
     ports:
       - "3003:3003"
     depends_on:
@@ -11,33 +13,51 @@ services:
 
   auth:
     build: ./auth
+    container_name: auth
+    restart: always
     ports:
       - "3000:3000"
     depends_on:
-      - mongo
-      - rabbitmq
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   order:
     build: ./order
+    container_name: order
+    restart: always
     ports:
       - "3002:3002"
     depends_on:
-      - mongo
-      - rabbitmq
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   product:
     build: ./product
+    container_name: product
+    restart: always
     ports:
       - "3001:3001"
     depends_on:
-      - mongo
-      - rabbitmq
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   mongo:
     image: mongo:6
     container_name: mongo
+    restart: always
     ports:
       - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -45,4 +65,9 @@ services:
     restart: always
     ports:
       - "5672:5672"   # AMQP
-      - "15672:15672" # Web U
+      - "15672:15672" # Web UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
